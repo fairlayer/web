@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="/bootstrap.min.css">
+  <script src="/axios.js"></script>
+  <script src="/common.js"></script>
+  <title>Fair Web</title>
+
+</head>
+
+<body>
+  <main role="main" class="container" id="main">
+    <h1 class="mt-5">Fair Web Wallet</h1>
+
+    <p><select id="picker">
+    </select></p>
+    <p>Receiving Address: <a href="#" id="deposit"></a></p>
+    <p><input type="text" id="address" placeholder="Destination Address"></p>
+    <p><input type="text" id="amount" placeholder="Amount"></p>
+    <p><button class="btn btn-success" id="withdraw">Send</button></p>
+
+<script>
+  window.fbAsyncInit = function() {
+    FB.init({
+      appId      : '205988163442584',
+      cookie     : true,
+      xfbml      : true,
+      version    : 'v3.0'
+    });
+      
+    FB.AppEvents.logPageView();   
+  };
+
+  (function(d, s, id){
+     var js, fjs = d.getElementsByTagName(s)[0];
+     if (d.getElementById(id)) {return;}
+     js = d.createElement(s); js.id = id;
+     js.src = "https://connect.facebook.net/en_US/sdk.js";
+     fjs.parentNode.insertBefore(js, fjs);
+   }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<fb:login-button 
+  scope="public_profile,email"
+  onlogin="checkLoginState();">
+</fb:login-button>
+ </main>
+</body></html>

@@ -5,7 +5,9 @@ crypto = require("crypto");
 rand = () => crypto.randomBytes(6).toString("hex");
 
 fs = require("fs");
-users = {};
+
+// include db schemes
+require("./db");
 
 process.on("unhandledRejection", l);
 process.on("uncaughtException", l);
@@ -19,9 +21,6 @@ if (fs.existsSync("/root/fair/data8002/offchain/pk.json")) {
   our_fair_rpc = "http://127.0.0.1:8002/rpc";
 }
 
-// pointing browser SDK to user node
-local_fair_rpc = "http://127.0.0.1:8001";
-
 processUpdates = async () => {
   r = await Fair("receivedAndFailed");
 
@@ -31,19 +30,29 @@ processUpdates = async () => {
     //if (obj.asset != 1) return // only FRD accepted
     l(obj);
 
-    let uid = Buffer.from(obj.invoice, "hex")
-      .slice(1)
-      .toString();
+    let uid = parseInt(
+      Buffer.from(obj.invoice, "hex")
+        .slice(1)
+        .toString()
+    );
+
+    let receiver = await User.findById(uid, { include: [{ all: true }] });
 
     // checking if uid is valid
-    if (users.hasOwnProperty(uid)) {
-      l(uid + (obj.is_inward ? " receive" : " refund"), obj);
+    if (receiver) {
+      l(receiver, obj.is_inward ? " receive" : " refund", obj);
+
+      let bal = receiver.balances.find(b => b.asset == obj.asset);
 
       // add or create asset balance
-      if (users[uid][obj.asset]) {
-        users[uid][obj.asset] += obj.amount;
+      if (bal) {
+        bal.balance += obj.amount;
+        await bal.save();
       } else {
-        users[uid][obj.asset] = obj.amount;
+        await receiver.createBalance({
+          asset: obj.asset,
+          balance: obj.amount
+        });
       }
     } else {
       l("No such user " + uid);
@@ -51,10 +60,6 @@ processUpdates = async () => {
   }
 
   setTimeout(processUpdates, 1000);
-};
-
-post = async (url, params) => {
-  return new Promise(resolve => {});
 };
 
 Fair = (method, params = {}) => {
@@ -66,80 +71,56 @@ Fair = (method, params = {}) => {
 };
 
 httpcb = async (req, res) => {
-  var id = false;
-
-  if (req.headers.cookie) {
-    var id = req.headers.cookie.split("id=")[1];
-  }
-
-  res.status = 200;
-
-  if (req.url == "/") {
-    if (!id) {
-      id = Math.round(Math.random() * 10000000); //rand()
-      l("Set cookie");
-      res.setHeader("Set-Cookie", "id=" + id);
-      repl.context.res = res;
-    }
-    if (!users[id]) users[id] = {};
-
-    res.end(`
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <link rel="stylesheet" href="/bootstrap.min.css">
-  <script src="/axios.js"></script>
-  <script src="/common.js"></script>
-  <title>Fairlayer Integration Demo</title>
-
-  <script>
-  fair_origin = '${local_fair_rpc}'
-  our_address = '${our_address}'
-  invoice = '${id}'
-  user = ${JSON.stringify(users[id])}
-  assets = ${JSON.stringify(assets).replace("/", "\\/")}
-  </script>
-</head>
-
-<body>
-  <main role="main" class="container" id="main">
-    <h1 class="mt-5">Fairlayer Integration Demo (JS)</h1>
-
-    <p>Your account in this service: <span id="yourid"></span></p>
-    <p><select id="picker">
-    </select></p>
-    <p>Deposit Address: <a href="#" id="deposit"></a></p>
-    <p><input type="text" id="address" placeholder="Withdraw Address"></p>
-    <p><input type="text" id="amount" placeholder="Amount"></p>
-    <p><button class="btn btn-success" id="withdraw">Withdraw</button></p>
-
-    <p><b>How to play with it?</b></p>
-    <p>1. <a href="https://fairlayer.com/#install">Install Fairlayer</a></p>
-    <p>2. Buy some Fair assets or use Testnet Faucet inside the wallet</p>
-    <p>3. Select an asset and click on deposit address to send arbitrary amount</p>
-    <p>4. ... (trade or somehow use the asset within the app)</p>
-    <p>5. Withdraw the asset from demoapp to your wallet or other app</p>
-    <p>6. <a href="https://github.com/fairlayer/demos">Read sources</a>. <a href="https://github.com/fairlayer/fair/blob/master/wiki/9_receive_and_pay.md">Implement receive/pay API on your own service</a></p>
- </main>
-</body></html>`);
-  } else if (req.url == "/init") {
+  if (req.url == "/rpc") {
     var queryData = "";
     req.on("data", function(data) {
       queryData += data;
     });
 
     req.on("end", async function() {
-      var p = JSON.parse(queryData);
+      res.status = 200;
 
-      if (p.address) {
+      let p = JSON.parse(queryData);
+      let respond = json => {
+        // global vars
+        json.assets = assets;
+        json.our_address = our_address;
+
+        if (json.user) {
+          json.auth_token = json.user.auth_token.toString("hex");
+        }
+
+        res.end(JSON.stringify(json));
+      };
+
+      if (!p.auth_token) {
+        let user = await User.create({
+          auth_token: crypto.randomBytes(32)
+        });
+
+        return respond({ user: user });
+      }
+
+      let user = await User.find({
+        where: { auth_token: Buffer.from(p.auth_token, "hex") },
+        include: [{ all: true }]
+      });
+      l("found ", user);
+
+      if (!user) return respond({ error: "fail_auth" });
+
+      if (p.method == "send") {
         var amount = Math.round(parseFloat(p.amount) * 100);
 
-        if (!users[id][p.asset] || users[id][p.asset] < amount) {
-          l("Not enough balance: ", users[id], p.asset);
+        let bal = user.balances.find(b => b.asset == p.asset);
+
+        if (!bal || bal.balance < amount) {
+          l("Not enough balance: ", bal, p.asset);
           return false;
         }
-        users[id][p.asset] -= amount;
+        bal.balance -= amount;
+        await bal.save();
+
         r = await Fair("send", {
           address: p.address,
           amount: amount,
@@ -149,11 +130,13 @@ httpcb = async (req, res) => {
         l(r.data);
 
         // if fail, do not withdraw?
-        res.end(JSON.stringify({ status: "paid" }));
+        respond({ status: "paid" });
+      } else if (p.method == "load") {
+        respond({ user: user });
       }
     });
   } else {
-    require("serve-static")(require("path").resolve(__dirname, "."))(
+    require("serve-static")(require("path").resolve(__dirname, "public"))(
       req,
       res,
       require("finalhandler")(req, res)
@@ -162,6 +145,8 @@ httpcb = async (req, res) => {
 };
 
 init = async () => {
+  await sequelize.sync({ force: false });
+
   if (fs.existsSync(fair_path + "/pk.json")) {
     auth_code = JSON.parse(fs.readFileSync(fair_path + "/pk.json")).auth_code;
     l("Auth code to our node: " + auth_code);
