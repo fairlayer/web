@@ -3,7 +3,8 @@ let base_db = {
   dialect: "sqlite",
   storage: "./db.sqlite",
   define: { timestamps: true },
-  operatorsAliases: false
+  operatorsAliases: false,
+  logging: false
 };
 
 Sequelize = require("sequelize");
@@ -35,7 +36,10 @@ Balance = sequelize.define("balance", {
 
 Payment = sequelize.define("payment", {
   amount: { type: Sequelize.BIGINT, defaultValue: 0 },
-  asset: { type: Sequelize.INTEGER, defaultValue: 1 }
+
+  asset: { type: Sequelize.INTEGER, defaultValue: 1 },
+
+  desc: { type: Sequelize.TEXT }
 });
 
 User.hasMany(Balance);

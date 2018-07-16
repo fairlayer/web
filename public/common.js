@@ -68,7 +68,7 @@ load = async function() {
 
   // invoice can also be included as #hash to the address
 
-  let html = "<option disabled>Select Fair asset to operate with</option>";
+  let html = "<option disabled>Select Fair asset:</option>";
   for (var a of Opts.assets) {
     html += `<option value="${a.id}">${escapeHTML(a.name)} (${escapeHTML(
       a.ticker
@@ -83,6 +83,7 @@ load = async function() {
   withdraw.onclick = function() {
     axios
       .post("/rpc", {
+        auth_token: localStorage.auth_token,
         method: "send",
         address: address.value,
         amount: amount.value,

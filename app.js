@@ -6,9 +6,10 @@ rand = () => crypto.randomBytes(6).toString("hex");
 
 fs = require("fs");
 
+Opts = {};
+
 // include db schemes
 require("./db");
-
 process.on("unhandledRejection", l);
 process.on("uncaughtException", l);
 
@@ -40,15 +41,16 @@ processUpdates = async () => {
 
     // checking if uid is valid
     if (receiver) {
-      l(receiver, obj.is_inward ? " receive" : " refund", obj);
+      l(receiver.id, obj.is_inward ? " receive" : " refund");
 
       let bal = receiver.balances.find(b => b.asset == obj.asset);
 
-      // add or create asset balance
+      // add to existing Balance
       if (bal) {
         bal.balance += obj.amount;
         await bal.save();
       } else {
+        // create new record
         await receiver.createBalance({
           asset: obj.asset,
           balance: obj.amount
@@ -83,8 +85,8 @@ httpcb = async (req, res) => {
       let p = JSON.parse(queryData);
       let respond = json => {
         // global vars
-        json.assets = assets;
-        json.our_address = our_address;
+        json.assets = Opts.assets;
+        json.our_address = Opts.our_address;
 
         if (json.user) {
           json.auth_token = json.user.auth_token.toString("hex");
@@ -105,7 +107,6 @@ httpcb = async (req, res) => {
         where: { auth_token: Buffer.from(p.auth_token, "hex") },
         include: [{ all: true }]
       });
-      l("found ", user);
 
       if (!user) return respond({ error: "fail_auth" });
 
@@ -114,20 +115,43 @@ httpcb = async (req, res) => {
 
         let bal = user.balances.find(b => b.asset == p.asset);
 
+        // todo: add transactions
+
         if (!bal || bal.balance < amount) {
           l("Not enough balance: ", bal, p.asset);
           return false;
         }
-        bal.balance -= amount;
-        await bal.save();
 
-        r = await Fair("send", {
-          address: p.address,
-          amount: amount,
-          invoice: id,
-          asset: p.asset
-        });
-        l(r.data);
+        let [addr, hash] = p.address.split("#");
+
+        // if destination is under same custodian, send internally with 0 fee
+        if (addr == Opts.our_address) {
+          let target = (await Balance.findOrBuild({
+            where: {
+              userId: parseInt(hash),
+              asset: p.asset
+            }
+          }))[0];
+
+          target.balance += amount;
+
+          await target.save();
+
+          bal.balance -= amount;
+          await bal.save();
+        } else {
+          // send through Fair network to external address
+          bal.balance -= amount;
+          await bal.save();
+
+          r = await Fair("send", {
+            address: p.address,
+            amount: amount,
+            invoice: id,
+            asset: p.asset
+          });
+          l(r.data);
+        }
 
         // if fail, do not withdraw?
         respond({ status: "paid" });
@@ -135,6 +159,8 @@ httpcb = async (req, res) => {
         respond({ user: user });
       }
     });
+  } else if (req.url.length > 4 && !req.url.includes(".")) {
+    // long and no dots, looks like a username
   } else {
     require("serve-static")(require("path").resolve(__dirname, "public"))(
       req,
@@ -161,14 +187,13 @@ init = async () => {
     return setTimeout(init, 1000);
   }
 
-  our_address = r.data.address;
-  assets = r.data.assets;
+  Opts.our_address = r.data.address;
 
-  // assets you support
-  whitelist = [1, 2];
-  assets = assets.filter(a => whitelist.includes(a.id));
+  // filter for assets you support
+  let whitelist = [1, 2, 5];
+  Opts.assets = r.data.assets.filter(a => whitelist.includes(a.id));
 
-  l("Our address: " + our_address);
+  l("Our address: " + Opts.our_address);
   processUpdates();
 
   require("http")
