@@ -37,6 +37,8 @@ processUpdates = async () => {
         .toString()
     );
 
+    if (!Number.isInteger(uid)) return;
+
     let receiver = await User.findById(uid, { include: [{ all: true }] });
 
     // checking if uid is valid
@@ -126,9 +128,14 @@ httpcb = async (req, res) => {
 
         // if destination is under same custodian, send internally with 0 fee
         if (addr == Opts.our_address) {
+          let dest = parseInt(hash);
+          if (user.id == dest) {
+            return respond({ status: "paying_self" });
+          }
+
           let target = (await Balance.findOrBuild({
             where: {
-              userId: parseInt(hash),
+              userId: dest,
               asset: p.asset
             }
           }))[0];
@@ -147,7 +154,6 @@ httpcb = async (req, res) => {
           r = await Fair("send", {
             address: p.address,
             amount: amount,
-            //invoice: id,
             asset: p.asset
           });
           l(r.data);

@@ -68,15 +68,17 @@ load = async function() {
 
   // invoice can also be included as #hash to the address
 
-  let html = "<option disabled>Select Fair asset:</option>";
+  let html = "";
   for (var a of Opts.assets) {
     html += `<option value="${a.id}">${escapeHTML(a.name)} (${escapeHTML(
       a.ticker
     )}): ${commy(getAsset(a.id))}</option>`;
   }
 
-  picker.innerHTML = html;
+  if (picker.innerHTML != html) picker.innerHTML = html;
+};
 
+window.onload = () => {
   picker.onchange = e => (localStorage.last_asset = picker.value);
   picker.value = localStorage.last_asset ? localStorage.last_asset : "1";
 
@@ -100,12 +102,17 @@ load = async function() {
   };
 
   faucet.onclick = () => {
-    axios.get("https://fairlayer.com:8100/rpc", {
-      address: deposit.innerHTML,
-      amount: faucet_amount.value,
-      asset: picker.value
-    });
-    setTimeout(load, 1000);
+    let hub =
+      location.hostname == "web.fairlayer.com"
+        ? "https://fairlayer.com"
+        : "http://127.0.0.1";
+    axios.get(
+      hub +
+        `:8100/faucet?address=${encodeURIComponent(deposit.innerHTML)}&amount=${
+          faucet_amount.value
+        }&asset=${picker.value}`
+    );
+    //setTimeout(load, 1000);
   };
 
   deposit.onclick = function() {
@@ -134,6 +141,8 @@ load = async function() {
       }
     });
   };
+
+  load();
 };
 
-window.onload = load;
+setInterval(load, 1000);
