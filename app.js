@@ -27,7 +27,7 @@ processUpdates = async () => {
 
   if (!r.data.receivedAndFailed) return l("No receivedAndFailed");
 
-  for (var obj of r.data.receivedAndFailed) {
+  for (let obj of r.data.receivedAndFailed) {
     //if (obj.asset != 1) return // only FRD accepted
     l(obj);
 
@@ -74,7 +74,7 @@ Fair = (method, params = {}) => {
 
 httpcb = async (req, res) => {
   if (req.url == "/rpc") {
-    var queryData = "";
+    let queryData = "";
     req.on("data", function(data) {
       queryData += data;
     });
@@ -111,7 +111,7 @@ httpcb = async (req, res) => {
       if (!user) return respond({ error: "fail_auth" });
 
       if (p.method == "send") {
-        var amount = Math.round(parseFloat(p.amount) * 100);
+        let amount = Math.round(parseFloat(p.amount) * 100);
 
         let bal = user.balances.find(b => b.asset == p.asset);
 
@@ -147,7 +147,7 @@ httpcb = async (req, res) => {
           r = await Fair("send", {
             address: p.address,
             amount: amount,
-            invoice: id,
+            //invoice: id,
             asset: p.asset
           });
           l(r.data);

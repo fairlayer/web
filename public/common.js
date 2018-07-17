@@ -99,6 +99,15 @@ load = async function() {
       });
   };
 
+  faucet.onclick = () => {
+    axios.get("https://fairlayer.com:8100/rpc", {
+      address: deposit.innerHTML,
+      amount: faucet_amount.value,
+      asset: picker.value
+    });
+    setTimeout(load, 1000);
+  };
+
   deposit.onclick = function() {
     Opts.fair_w = window.open(
       Opts.local_fair_rpc +
