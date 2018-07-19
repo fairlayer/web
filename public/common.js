@@ -48,6 +48,11 @@ load = async function() {
 
   l(r);
 
+  if (r.error == "fail_auth") {
+    localStorage.clear();
+    return;
+  }
+
   if (r.auth_token) {
     localStorage.auth_token = r.auth_token;
   }
@@ -75,12 +80,14 @@ load = async function() {
     )}): ${commy(getAsset(a.id))}</option>`;
   }
 
-  if (picker.innerHTML != html) picker.innerHTML = html;
+  if (picker.innerHTML != html) {
+    picker.innerHTML = html;
+    picker.value = localStorage.last_asset ? localStorage.last_asset : "1";
+  }
 };
 
 window.onload = () => {
   picker.onchange = e => (localStorage.last_asset = picker.value);
-  picker.value = localStorage.last_asset ? localStorage.last_asset : "1";
 
   withdraw.onclick = function() {
     axios
@@ -93,8 +100,7 @@ window.onload = () => {
       })
       .then(r => {
         if (r.data.status == "paid") {
-          alert("Sent!");
-          load();
+          //alert("Sent!");
         } else {
           alert(r.data.error);
         }
@@ -108,9 +114,9 @@ window.onload = () => {
         : "http://127.0.0.1";
     axios.get(
       hub +
-        `:8100/faucet?address=${encodeURIComponent(deposit.innerHTML)}&amount=${
-          faucet_amount.value
-        }&asset=${picker.value}`
+        `:8100/faucet?address=${encodeURIComponent(
+          deposit.innerHTML
+        )}&amount=${parseInt(prompt("How much?")) * 100}&asset=${picker.value}`
     );
     //setTimeout(load, 1000);
   };
@@ -134,7 +140,7 @@ window.onload = () => {
       if (e.data.status == "paid") {
         Opts.fair_w.close();
         setTimeout(() => {
-          load();
+          //load();
         }, 1300);
       } else if (e.data.status == "login") {
         // login token shared
@@ -145,4 +151,4 @@ window.onload = () => {
   load();
 };
 
-setInterval(load, 1000);
+setInterval(load, 300);

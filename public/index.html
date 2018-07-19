@@ -11,22 +11,20 @@
 
 <body>
   <main role="main" class="container" id="main">
-    <h1 class="mt-5">Fair Web Wallet</h1>
+    <h1 class="mt-5">Web Wallet</h1>
 
     <p><select id="picker" style="width:300px">
-    </select></p>
+    </select> <span class="badge badge-success" id=faucet>Free $ Faucet</span>
+</p>
+
     <p>Receiving Address: <a href="javascript:void()" id="deposit"></a></p>
     <p><input type="text" id="address" placeholder="Destination Address"></p>
     <p><input type="text" id="amount" placeholder="Amount"></p>
     <p><button class="btn btn-success" id="withdraw">Send</button></p>
 
 
-    <div class="input-group mb-3" style="width:400px" >
-      <input id="faucet_amount" type="text" class="form-control" placeholder="Amount to get" aria-label="Amount to get" aria-describedby="basic-addon2">
-      <div class="input-group-append">
-        <button class="btn btn-outline-secondary" type="button" id="faucet">Testnet Faucet</button>
-      </div>
-    </div>
+    
+
 
 
 

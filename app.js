@@ -31,6 +31,8 @@ processUpdates = async () => {
     //if (obj.asset != 1) return // only FRD accepted
     l(obj);
 
+    if (!obj.invoice) return;
+
     let uid = parseInt(
       Buffer.from(obj.invoice, "hex")
         .slice(1)
@@ -200,6 +202,7 @@ init = async () => {
   Opts.assets = r.data.assets.filter(a => whitelist.includes(a.id));
 
   l("Our address: " + Opts.our_address);
+  l("URL: http://127.0.0.1:3010");
   processUpdates();
 
   require("http")
