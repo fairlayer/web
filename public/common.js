@@ -61,7 +61,8 @@ load = async function() {
   Opts.user = r.user;
   Opts.assets = r.assets;
 
-  deposit.innerHTML = Opts.our_address + "#" + Opts.user.id;
+  let addr = Opts.our_address + "#" + Opts.user.id;
+  if (deposit.innerHTML != addr) deposit.innerHTML = addr;
 
   var getAsset = assetId => {
     if (!Opts.user.balances) return 0;
